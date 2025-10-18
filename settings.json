@@ -1,0 +1,17 @@
+{
+    "sqltools.connections": [
+        {
+            "ssh": "Disabled",
+            "previewLimit": 50,
+            "server": "localhost",
+            "port": 5432,
+            "driver": "PostgreSQL",
+            "connectionTimeout": 30,
+            "username": "postgres",
+            "database": "flightbookings",
+            "name": "PG local",
+            "password": "Parallel2141$"
+        }
+    ],
+    "sqltools.useNodeRuntime": true
+}
