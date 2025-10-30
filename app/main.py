@@ -3,10 +3,12 @@ Main FastAPI application - FIXED VERSION
 """
 
 import asyncio
+import os
 from fastapi import FastAPI, HTTPException, Query, Depends, status
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 import random
@@ -35,6 +37,8 @@ app = FastAPI(
     description="A comprehensive flight booking system with dynamic pricing",
     version="1.0.0"
 )
+
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -42,6 +46,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount static files
+frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
 # Create FastAPI routers
 from app.routes.flights_v2 import router as flights_router

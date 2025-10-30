@@ -3,15 +3,18 @@ services:
     name: flight-booking-api
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    buildCommand: |
+      pip install -r requirements.txt
+    startCommand: gunicorn -c gunicorn_conf.py app.main:app
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: PORT
-        value: 8001
+        value: 10000
       - key: PYTHONPATH
         value: .
+      - key: ENVIRONMENT
+        value: production
     healthCheckPath: /
     region: oregon
