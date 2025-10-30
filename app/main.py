@@ -4,7 +4,8 @@ Main FastAPI application - FIXED VERSION
 
 import asyncio
 import os
-from fastapi import FastAPI, HTTPException, Query, Depends, status
+from fastapi import FastAPI, HTTPException, Query, Depends, status, Response
+from fastapi.responses import HTMLResponse, RedirectResponse
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
@@ -47,9 +48,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Mount static files
+# Mount static files for frontend
 frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
-app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
+app.mount("/static", StaticFiles(directory=frontend_dir), name="frontend")
 
 # Create FastAPI routers
 from app.routes.flights_v2 import router as flights_router
@@ -995,14 +996,17 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             detail="Internal server error during registration"
         )
 
-@app.get("/")
-def root():
-    """API root"""
-    return {
-        "message": "Flight Booking API",
-        "version": "1.0.0",
-        "documentation": "/docs"
-    }
+@app.get("/", response_class=HTMLResponse)
+async def root():
+    """Serve the frontend index.html"""
+    try:
+        index_path = os.path.join(frontend_dir, "index.html")
+        with open(index_path, "r", encoding="utf-8") as f:
+            content = f.read()
+            return HTMLResponse(content=content)
+    except Exception as e:
+        print(f"Error serving index.html: {e}")
+        return HTMLResponse(content="<h1>Flight Booking API</h1><p>Error loading frontend.</p>")
 
 @app.get("/airports")
 def get_airports():
