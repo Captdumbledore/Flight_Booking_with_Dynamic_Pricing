@@ -5,7 +5,7 @@ services:
     plan: free
     buildCommand: |
       pip install -r requirements.txt
-    startCommand: gunicorn -c gunicorn_conf.py app.main:app
+    startCommand: gunicorn -c gunicorn_conf.py run:app
     autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
@@ -16,5 +16,7 @@ services:
         value: .
       - key: ENVIRONMENT
         value: production
+      - key: API_BASE_URL
+        value: https://flight-booking-with-dynamic-pricing.onrender.com/api
     healthCheckPath: /
     region: oregon
