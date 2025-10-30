@@ -1,11 +1,17 @@
 services:
   - type: web
     name: flight-booking-api
-    env: python
+    runtime: python
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn run:app --host 0.0.0.0 --port $PORT
+    autoDeploy: true
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.0
       - key: PORT
         value: 8001
+      - key: PYTHONPATH
+        value: .
+    healthCheckPath: /
+    region: oregon
