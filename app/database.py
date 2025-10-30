@@ -1,7 +1,58 @@
 
 from typing import List
 from collections import defaultdict
-from app.models import Flight, DemandLevel
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.ext.declarative import declarative_base
+
+from app.models import Base, User
+from pydantic import BaseModel
+from typing import Optional
+from datetime import datetime
+
+
+class Flight(BaseModel):
+    """Pydantic model for flights"""
+    flight_id: str
+    airline: str
+    origin: str
+    destination: str
+    departure_time: datetime
+    arrival_time: datetime
+    base_fare: float
+    total_seats: int
+    available_seats: int
+    tier: str
+    
+    @property
+    def duration_minutes(self) -> int:
+        """Calculate flight duration in minutes"""
+        return int((self.arrival_time - self.departure_time).total_seconds() / 60)
+from enum import Enum
+
+class DemandLevel(str, Enum):
+    """Demand level for flights"""
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    VERY_HIGH = "very_high"
+
+# SQLite database configuration
+SQLALCHEMY_DATABASE_URL = "sqlite:///./flight_booking.db"
+engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Create tables
+Base.metadata.create_all(bind=engine)
+
+# Dependency for database session
+def get_db():
+    """Get database session"""
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 
 class FlightDatabase:

@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Register - SkyBook Airlines</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --navy-blue: #001f3f;
+            --light-navy: #003366;
+            --accent-blue: #0074D9;
+            --light-blue: #7FDBFF;
+            --white: #ffffff;
+            --light-gray: #f5f7fa;
+            --text-dark: #2c3e50;
+            --success: #2ecc71;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--navy-blue) 0%, var(--light-navy) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .register-container {
+            background: var(--white);
+            border-radius: 15px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 500px;
+            padding: 2rem;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .logo-text {
+            font-size: 2rem;
+            font-weight: bold;
+            color: var(--navy-blue);
+        }
+
+        .logo-text span {
+            color: var(--accent-blue);
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--navy-blue);
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .password-requirements {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.5rem;
+        }
+
+        .password-requirements ul {
+            list-style: none;
+            padding-left: 0;
+        }
+
+        .password-requirements li {
+            margin: 0.2rem 0;
+        }
+
+        .password-requirements li.valid {
+            color: var(--success);
+        }
+
+        .password-requirements li::before {
+            content: '•';
+            margin-right: 0.5rem;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: var(--accent-blue);
+            color: var(--white);
+        }
+
+        .btn-primary:hover {
+            background: var(--navy-blue);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 116, 217, 0.4);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--accent-blue);
+            color: var(--accent-blue);
+            margin-top: 1rem;
+        }
+
+        .btn-outline:hover {
+            background: var(--accent-blue);
+            color: var(--white);
+        }
+
+        .links {
+            text-align: center;
+            margin-top: 1.5rem;
+        }
+
+        .links a {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+
+        .links a:hover {
+            text-decoration: underline;
+        }
+
+        .error-message {
+            color: var(--danger);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        .success-message {
+            color: var(--success);
+            font-size: 0.9rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        .success-message.active {
+            display: block;
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+            20%, 40%, 60%, 80% { transform: translateX(5px); }
+        }
+
+        .shake {
+            animation: shake 0.5s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <div class="register-container">
+        <div class="logo">
+            <div class="logo-text">✈️ <span>SkyBook</span> Airlines</div>
+        </div>
+
+        <form id="registerForm">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="firstName">First Name</label>
+                    <input type="text" id="firstName" name="first_name" required>
+                    <div class="error-message" id="firstNameError"></div>
+                </div>
+
+                <div class="form-group">
+                    <label for="lastName">Last Name</label>
+                    <input type="text" id="lastName" name="last_name" required>
+                    <div class="error-message" id="lastNameError"></div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email</label>
+                <input type="email" id="email" name="email" required>
+                <div class="error-message" id="emailError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password</label>
+                <input type="password" id="password" name="password" required>
+                <div class="password-requirements">
+                    <ul id="passwordRequirements">
+                        <li id="reqLength">At least 8 characters long</li>
+                        <li id="reqUppercase">Contains uppercase letter</li>
+                        <li id="reqLowercase">Contains lowercase letter</li>
+                        <li id="reqNumber">Contains number</li>
+                        <li id="reqSpecial">Contains special character</li>
+                    </ul>
+                </div>
+                <div class="error-message" id="passwordError"></div>
+            </div>
+
+            <div class="form-group">
+                <label for="confirmPassword">Confirm Password</label>
+                <input type="password" id="confirmPassword" name="confirm_password" required>
+                <div class="error-message" id="confirmPasswordError"></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Create Account</button>
+            <div class="error-message" id="registerError"></div>
+            <div class="success-message" id="registerSuccess"></div>
+        </form>
+
+        <div class="links">
+            Already have an account? <a href="login.html">Login</a>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://127.0.0.1:8001';
+
+        // Password validation
+        const password = document.getElementById('password');
+        const requirements = {
+            length: { regex: /.{8,}/, element: document.getElementById('reqLength') },
+            uppercase: { regex: /[A-Z]/, element: document.getElementById('reqUppercase') },
+            lowercase: { regex: /[a-z]/, element: document.getElementById('reqLowercase') },
+            number: { regex: /[0-9]/, element: document.getElementById('reqNumber') },
+            special: { regex: /[!@#$%^&*(),.?":{}|<>]/, element: document.getElementById('reqSpecial') }
+        };
+
+        password.addEventListener('input', () => {
+            const value = password.value;
+            
+            // Check each requirement
+            for (const [key, requirement] of Object.entries(requirements)) {
+                if (requirement.regex.test(value)) {
+                    requirement.element.classList.add('valid');
+                } else {
+                    requirement.element.classList.remove('valid');
+                }
+            }
+        });
+
+        // Form submission
+        document.getElementById('registerForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            // Reset error messages
+            resetErrorMessages();
+
+            // Get form values
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validate form
+            if (!validateForm(firstName, lastName, email, password, confirmPassword)) {
+                return;
+            }
+
+            try {
+                console.log('Sending registration data:', {
+                    first_name: firstName,
+                    last_name: lastName,
+                    email: email,
+                    password: password
+                });
+                
+                const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        first_name: firstName,
+                        last_name: lastName,
+                        email: email,
+                        password: password
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Registration failed');
+                }
+
+                // Show success message
+                const successMsg = document.getElementById('registerSuccess');
+                successMsg.textContent = 'Registration successful! Redirecting to login...';
+                successMsg.classList.add('active');
+
+                // Redirect to login page after a short delay
+                setTimeout(() => {
+                    window.location.href = 'login.html';
+                }, 2000);
+
+            } catch (error) {
+                console.error('Registration error:', error);
+                showError('registerError', error.message);
+            }
+        });
+
+        // Form validation
+        function validateForm(firstName, lastName, email, password, confirmPassword) {
+            let isValid = true;
+
+            if (firstName.length < 2) {
+                showError('firstNameError', 'First name must be at least 2 characters long');
+                isValid = false;
+            }
+
+            if (lastName.length < 2) {
+                showError('lastNameError', 'Last name must be at least 2 characters long');
+                isValid = false;
+            }
+
+            if (!email.includes('@')) {
+                showError('emailError', 'Please enter a valid email address');
+                isValid = false;
+            }
+
+            // Check all password requirements
+            for (const [key, requirement] of Object.entries(requirements)) {
+                if (!requirement.regex.test(password)) {
+                    showError('passwordError', 'Password does not meet all requirements');
+                    isValid = false;
+                    break;
+                }
+            }
+
+            if (password !== confirmPassword) {
+                showError('confirmPasswordError', 'Passwords do not match');
+                isValid = false;
+            }
+
+            return isValid;
+        }
+
+        // Helper functions
+        function resetErrorMessages() {
+            document.querySelectorAll('.error-message').forEach(el => {
+                el.textContent = '';
+                el.classList.remove('active');
+            });
+            document.getElementById('registerSuccess').classList.remove('active');
+        }
+
+        function showError(elementId, message) {
+            const errorEl = document.getElementById(elementId);
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+            document.querySelector('.register-container').classList.add('shake');
+            setTimeout(() => {
+                document.querySelector('.register-container').classList.remove('shake');
+            }, 500);
+        }
+    </script>
+</body>
+</html>

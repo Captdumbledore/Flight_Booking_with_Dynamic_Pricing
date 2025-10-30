@@ -1,6 +1,5 @@
-
-from pydantic import BaseModel, Field, validator
-from typing import Optional
+from pydantic import BaseModel
+from typing import List, Optional
 from datetime import datetime
 from enum import Enum
 
@@ -39,6 +38,12 @@ class Flight(BaseModel):
     total_seats: int
     available_seats: int
     tier: PricingTier
+    origin_city: Optional[str] = None
+    destination_city: Optional[str] = None
+    airline_code: Optional[str] = None
+
+    class Config:
+        from_attributes = True
     
     @property
     def duration_minutes(self) -> int:
@@ -65,26 +70,13 @@ class FlightResponse(BaseModel):
 
 class SearchParams(BaseModel):
     """Search parameters with validation"""
-    origin: str = Field(..., min_length=3, max_length=3, description="Origin airport code")
-    destination: str = Field(..., min_length=3, max_length=3, description="Destination airport code")
-    date: str = Field(..., pattern=r'^\d{4}-\d{2}-\d{2}$', description="Date in YYYY-MM-DD format")
+    origin: str
+    destination: str
+    date: str
     sort_by: Optional[SortBy] = SortBy.PRICE
-    
-    @validator('origin', 'destination')
-    def validate_airport_code(cls, v):
-        """Convert airport codes to uppercase"""
-        return v.upper()
-    
-    @validator('date')
-    def validate_date(cls, v):
-        """Validate date is not in the past"""
-        try:
-            date = datetime.strptime(v, '%Y-%m-%d')
-            if date.date() < datetime.now().date():
-                raise ValueError('Date cannot be in the past')
-            return v
-        except ValueError as e:
-            raise ValueError(f'Invalid date: {str(e)}')
+
+    class Config:
+        use_enum_values = True
 
 
 class FareHistoryEntry(BaseModel):
@@ -103,7 +95,7 @@ class FareHistoryResponse(BaseModel):
     departure_time: str
     base_fare: float
     history_entries: int
-    history: list[FareHistoryEntry]
+    history: List[FareHistoryEntry]
 
 
 class StatsResponse(BaseModel):

@@ -1,0 +1,30 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.env
+.venv
+*.egg-info/
+dist/
+build/
+
+# VS Code
+.vscode/
+
+# Tests
+test/
+tests/
+pytest.ini
+
+# Misc
+README.md
+*.log

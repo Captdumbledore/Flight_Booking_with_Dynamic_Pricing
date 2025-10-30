@@ -1,24 +1,21 @@
-"""
-Application entry point
-"""
 
 import uvicorn
 
 if __name__ == "__main__":
     print("""
     ╔══════════════════════════════════════════════════════════╗
-    ║                                                          ║
-    ║        Flight Booking API - Dynamic Pricing System      ║
-    ║                                                          ║
+    ║                                                                       ║
+    ║   Flight Booking API - PostgreSQL Database Version                    ║
+    ║                                                                       ║
     ╚══════════════════════════════════════════════════════════╝
     
     🌐 Server: http://0.0.0.0:8001
     📚 Docs:   http://0.0.0.0:8001/docs
-    🔍 ReDoc:  http://0.0.0.0:8001/redoc
+    🗄️ Database: PostgreSQL
     """)
     
     uvicorn.run(
-        "main_standalone:app",  # Changed this line
+        "app.main:app",
         host="0.0.0.0",
         port=8001,
         reload=True

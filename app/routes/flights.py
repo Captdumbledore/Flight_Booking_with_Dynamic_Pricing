@@ -1,13 +1,20 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timedelta
+import asyncio
 
 from app.models import (
     FlightResponse, SearchParams, SortBy,
     FareHistoryResponse, FareHistoryEntry, StatsResponse
 )
+from app.state import flights_data  # Import flight data
+from app.models.search import FlightSearchRequest  # Import the request model
 from app.database import db
 from app.pricing import DynamicPricingEngine
+from app.amadeus_client import amadeus_client
+
+# In-memory cache for flights
+cached_flights = []
 
 
 router = APIRouter(prefix="/flights", tags=["Flights"])
@@ -36,96 +43,142 @@ def format_flight_response(flight) -> FlightResponse:
 
 
 @router.get("", response_model=List[FlightResponse])
-def get_all_flights(
+async def get_all_flights(
     sort_by: Optional[SortBy] = Query(SortBy.PRICE, description="Sort by price or duration"),
     limit: Optional[int] = Query(100, ge=1, le=500, description="Maximum number of results")
 ):
     """
     Retrieve all active flights
-    
-    - **sort_by**: Sort results by price or duration
-    - **limit**: Maximum number of flights to return (1-500)
+    Uses real-time Amadeus data with caching
     """
-    # Filter out past flights
-    active_flights = [
-        f for f in db.get_all_flights()
-        if f.departure_time > datetime.now()
-    ]
+    global cached_flights
     
-    # Format responses
-    responses = [format_flight_response(f) for f in active_flights]
+    # If cache is empty, fetch initial flights
+    if not cached_flights:
+        cached_flights = await amadeus_client.get_initial_flights(num_routes=5)
     
-    # Sort
+    # Sort flights
     if sort_by == SortBy.PRICE:
-        responses.sort(key=lambda x: x.current_price)
+        sorted_flights = sorted(cached_flights, key=lambda x: x["current_price"])
     else:  # Sort by duration
-        responses.sort(key=lambda x: (
-            int(x.duration.split('h')[0]) * 60 +
-            int(x.duration.split('h')[1].split('m')[0])
-        ))
+        def duration_minutes(flight):
+            try:
+                hours = int(flight["duration"].split('h')[0])
+                minutes = int(flight["duration"].split('h')[1].split('m')[0])
+                return hours * 60 + minutes
+            except:
+                return 0
+        sorted_flights = sorted(cached_flights, key=duration_minutes)
     
-    return responses[:limit]
+    return sorted_flights[:limit]
 
 
-@router.post("/search", response_model=List[FlightResponse])
-def search_flights(params: SearchParams):
+@router.post("/search", response_model=List[dict])
+async def search_flights(search_request: FlightSearchRequest):
     """
-    Search flights by origin, destination, and date
+    Search flights with real-time Amadeus API integration
+    """
+    print(f"🔍 Flight Search Request")
+    print("="*60)
     
-    Request body:
-    - **origin**: 3-letter airport code (e.g., JFK)
-    - **destination**: 3-letter airport code (e.g., LAX)
-    - **date**: Date in YYYY-MM-DD format
-    - **sort_by**: Optional sorting (price or duration)
-    """
+    origin = search_request.origin.upper()
+    destination = search_request.destination.upper()
+    date = search_request.date
+    sort_by = search_request.sort_by
+    
+    print(f"\nSearch parameters:")
+    print(f"• Origin: {origin}")
+    print(f"• Destination: {destination}")
+    print(f"• Date: {date}")
+    print(f"• Sort by: {sort_by}")
+    
     try:
-        search_date = datetime.strptime(params.date, '%Y-%m-%d').date()
-    except ValueError:
+        # Validate date format
+        search_date = datetime.strptime(date, '%Y-%m-%d').date()
+        current_date = datetime.now().date()
+        
+        if search_date < current_date:
+            error_msg = f"Flight date {date} is in the past"
+            print(f"❌ {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # Don't allow dates more than 1 year in advance
+        max_future_date = current_date + timedelta(days=365)
+        if search_date > max_future_date:
+            error_msg = f"Flight date {date} is too far in the future"
+            print(f"❌ {error_msg}")
+            raise HTTPException(status_code=400, detail=error_msg)
+        
+        # Format the date for the API
+        date_str = search_date.strftime('%Y-%m-%d')
+        
+        print("✅ Date validation successful")
+        
+        print("\n📡 Querying Amadeus API...")
+        async def get_amadeus_flights():
+            try:
+                # Search Amadeus for flights
+                flights = await amadeus_client.search_flights(
+                    origin=origin,
+                    destination=destination,
+                    date=date_str,
+                    max_results=10
+                )
+                
+                if not flights:
+                    print("\n❌ No flights found")
+                    return []
+                
+                # Sort results
+                if sort_by == "price":
+                    flights.sort(key=lambda x: x["current_price"])
+                    print("\n💰 Flights sorted by price")
+                else:
+                    def duration_minutes(flight):
+                        try:
+                            hours = int(flight["duration"].split('h')[0])
+                            minutes = int(flight["duration"].split('h')[1].split('m')[0])
+                            return hours * 60 + minutes
+                        except:
+                            return 0
+                    flights.sort(key=duration_minutes)
+                    print("\n⏱️ Flights sorted by duration")
+                
+                print(f"\n✅ Found {len(flights)} flights")
+                return flights
+            except Exception as e:
+                print(f"\n❌ Error searching flights: {e}")
+                return []
+        
+        return await asyncio.wait_for(get_amadeus_flights(), timeout=15)
+        
+    except ValueError as ve:
+        error_msg = "Invalid date format. Use YYYY-MM-DD"
+        print(f"❌ {error_msg}")
+        raise HTTPException(status_code=400, detail=error_msg)
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Unexpected error: {e}")
         raise HTTPException(
-            status_code=400,
-            detail="Invalid date format. Use YYYY-MM-DD"
+            status_code=500,
+            detail="Internal server error while searching flights"
         )
-    
-    # Filter flights
-    matching_flights = [
-        f for f in db.get_all_flights()
-        if f.origin == params.origin
-        and f.destination == params.destination
-        and f.departure_time.date() == search_date
-        and f.departure_time > datetime.now()
-    ]
-    
-    if not matching_flights:
-        return []
-    
-    # Format responses
-    responses = [format_flight_response(f) for f in matching_flights]
-    
-    # Sort
-    if params.sort_by == SortBy.PRICE:
-        responses.sort(key=lambda x: x.current_price)
-    else:
-        responses.sort(key=lambda x: (
-            int(x.duration.split('h')[0]) * 60 +
-            int(x.duration.split('h')[1].split('m')[0])
-        ))
-    
-    return responses
 
 
 @router.get("/{flight_id}", response_model=FlightResponse)
-def get_flight(flight_id: str):
+async def get_flight(flight_id: str):
     """
     Get specific flight details by ID
-    
-    - **flight_id**: Unique flight identifier (e.g., FL0001)
+    Checks cached flights from Amadeus
     """
-    flight = db.get_flight_by_id(flight_id)
+    # Check cached flights
+    flight = next((f for f in cached_flights if f["flight_id"] == flight_id), None)
     
     if not flight:
         raise HTTPException(status_code=404, detail="Flight not found")
     
-    return format_flight_response(flight)
+    return flight
 
 
 @router.get("/{flight_id}/fare-history", response_model=FareHistoryResponse)
