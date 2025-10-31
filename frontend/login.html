@@ -159,8 +159,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Base URL is the current origin since we're serving frontend from the same server
-        const API_BASE_URL = '';
+        const API_BASE_URL = 'http://localhost:8001';
 
         document.getElementById('loginForm').addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -178,20 +177,18 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({ email, password }),
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Invalid email or password');
-                }
-
                 const data = await response.json();
-                localStorage.setItem('authToken', data.access_token);
-                localStorage.setItem('userEmail', email);
-                window.location.href = 'index.html';
+
+                if (response.ok) {
+                    localStorage.setItem('authToken', data.access_token);
+                    localStorage.setItem('userEmail', email);  // Store the email
+                    const returnUrl = localStorage.getItem('returnUrl') || 'index.html';
+                    localStorage.removeItem('returnUrl');  // Clear the stored URL
+                    window.location.href = returnUrl;
                 } else {
                     throw new Error(data.detail || 'Invalid email or password');
                 }
@@ -222,41 +219,8 @@
                 el.style.display = 'none';
             });
 
-            // Validate full name
             if (!firstName || !lastName) {
                 showError('regFullName', 'Please enter both first and last name');
-                return;
-            }
-
-            // Validate email format
-            if (!email || !email.includes('@')) {
-                showError('regEmail', 'Please enter a valid email address');
-                return;
-            }
-
-            // Validate password requirements
-            if (password.length < 8) {
-                showError('regPassword', 'Password must be at least 8 characters long');
-                return;
-            }
-
-            if (!/[A-Z]/.test(password)) {
-                showError('regPassword', 'Password must contain at least one uppercase letter');
-                return;
-            }
-
-            if (!/[a-z]/.test(password)) {
-                showError('regPassword', 'Password must contain at least one lowercase letter');
-                return;
-            }
-
-            if (!/[0-9]/.test(password)) {
-                showError('regPassword', 'Password must contain at least one number');
-                return;
-            }
-
-            if (!/[!@#$%^&*]/.test(password)) {
-                showError('regPassword', 'Password must contain at least one special character (!@#$%^&*)');
                 return;
             }
 
@@ -266,12 +230,10 @@
             }
 
             try {
-                console.log('Attempting registration...');
-                const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+                const response = await fetch(`${API_BASE_URL}/auth/register`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Accept': 'application/json'
                     },
                     body: JSON.stringify({
                         first_name: firstName,
@@ -281,18 +243,13 @@
                     }),
                 });
 
-                console.log('Registration response:', response.status);
                 const data = await response.json();
-                console.log('Registration data:', data);
 
-                if (!response.ok) {
-                    throw new Error(data.detail || 'Registration failed');
-                }
-                
-                // Show success message and close modal
-                showSuccess('Registration successful! Please login.');
-                bootstrap.Modal.getInstance(document.getElementById('registrationModal')).hide();
-                document.getElementById('email').value = email;
+                if (response.ok) {
+                    // Show success message and close modal
+                    showSuccess('Registration successful! Please login.');
+                    bootstrap.Modal.getInstance(document.getElementById('registrationModal')).hide();
+                    document.getElementById('email').value = email;
                 } else {
                     throw new Error(data.detail || 'Registration failed');
                 }

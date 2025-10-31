@@ -3,7 +3,7 @@ Main FastAPI application - FIXED VERSION
 """
 
 import asyncio
-from fastapi import FastAPI, HTTPException, Query, Depends, status, APIRouter
+from fastapi import FastAPI, HTTPException, Query, Depends, status
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
@@ -30,28 +30,15 @@ import json
 from dotenv import load_dotenv
 
 # Create FastAPI app
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
-import pathlib
-
 app = FastAPI(
     title="Flight Booking API",
     description="A comprehensive flight booking system with dynamic pricing",
     version="1.0.0"
 )
-
-# Mount the frontend directory for static files
-frontend_dir = str(pathlib.Path(__file__).parent.parent / "frontend")
-app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
-
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8001",
-        "https://flight-booking-with-dynamic-pricing.onrender.com"
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -65,33 +52,12 @@ app.include_router(flights_router)
 # Import in-memory storage
 from app.state import flights_data, bookings_data
 
-# Initialize SQLAlchemy engine and session
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-
 # Load environment variables
 load_dotenv()  # This will automatically look for .env file
 
-# Create SQLite database engine
-SQLALCHEMY_DATABASE_URL = "sqlite:///./flight_booking.db"
-engine = create_engine(SQLALCHEMY_DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# Create all database tables
-from app.user_database import Base
-Base.metadata.create_all(bind=engine)
-
-# Dependency to get database session
-def get_db_session():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
 # Amadeus API Configuration
-AMADEUS_CLIENT_ID = os.getenv("AMADEUS_CLIENT_ID")
-AMADEUS_CLIENT_SECRET = os.getenv("AMADEUS_CLIENT_SECRET")
+AMADEUS_CLIENT_ID = "X5MG313HNu3o3YXHiqemToAUrQxknRwm"
+AMADEUS_CLIENT_SECRET = "dGe3yTGET /bookings/email/jistoprakash@gmail.comGET /bookings/email/jistoprakash@gmail.comN6aHoGtmtD"
 AMADEUS_BASE_URL = "https://test.api.amadeus.com"
 AMADEUS_ACCESS_TOKEN = None
 AMADEUS_TOKEN_EXPIRES_AT = None
@@ -222,12 +188,6 @@ async def startup_event():
     ]
     
     try:
-        # Check Amadeus credentials first
-        if not AMADEUS_CLIENT_ID or not AMADEUS_CLIENT_SECRET:
-            print("\n⚠️ Amadeus credentials not configured - using fallback data")
-            await load_fallback_flight_data(initial_only=True)
-            return
-
         # Try to get some real flights with a timeout
         async def load_data():
             loaded = await load_initial_flights(INITIAL_ROUTES)
@@ -976,76 +936,7 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
 
 @app.post("/auth/register")
-async def register(user_data: UserRegister, db: Session = Depends(get_db_session)):
-    """Register a new user"""
-    print(f"\n📝 Registration attempt for {user_data.email}")
-    
-    try:
-        # Check if user already exists
-        existing_user = db.query(User).filter(User.email == user_data.email).first()
-        if existing_user:
-            print(f"❌ Email already registered: {user_data.email}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
-
-        # Validate password requirements
-        if len(user_data.password) < 8:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Password must be at least 8 characters long"
-            )
-
-        # Create password hash
-        password_hash = get_password_hash(user_data.password)
-        
-        # Create new user
-        new_user = User(
-            email=user_data.email,
-            password_hash=password_hash,
-            first_name=user_data.first_name,
-            last_name=user_data.last_name,
-            phone=user_data.phone
-        )
-        
-        try:
-            # Add to database
-            db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
-            
-            print(f"✅ Registration successful for {user_data.email}")
-            return {
-                "message": "Registration successful",
-                "user": {
-                    "email": new_user.email,
-                    "first_name": new_user.first_name,
-                    "last_name": new_user.last_name
-                }
-            }
-        except Exception as db_error:
-            db.rollback()
-            print(f"❌ Database error during registration: {str(db_error)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Database error during registration"
-            )
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"❌ Registration error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
-
-# API Endpoints prefixed with /api
-router = APIRouter(prefix="/api")
-
-@router.post("/auth/register", response_model=dict)
-async def register(user_data: UserRegister, db: Session = Depends(get_db_session)):
+async def register(user_data: UserRegister, db: Session = Depends(get_db)):
     """Register a new user"""
     print(f"\n📝 Registration attempt for {user_data.email}")
     
@@ -1071,92 +962,39 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db_session
             phone=user_data.phone
         )
         
-        try:
-            # Add to database
-            db.add(new_user)
-            db.commit()
-            db.refresh(new_user)
-            
-            print(f"✅ Registration successful for {user_data.email}")
-            return {
-                "message": "Registration successful",
-                "user": {
-                    "email": new_user.email,
-                    "first_name": new_user.first_name,
-                    "last_name": new_user.last_name
-                }
-            }
-        except Exception as db_error:
-            db.rollback()
-            print(f"❌ Database error during registration: {str(db_error)}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Database error during registration"
-            )
-            
-    except HTTPException:
-        raise
-    except Exception as e:
-        print(f"❌ Registration error: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(e)
-        )
-
-@router.post("/auth/login")
-async def login(user_data: UserLogin, db: Session = Depends(get_db_session)):
-    """Handle user login"""
-    print(f"\n🔐 Login attempt for {user_data.email}")
-    
-    try:
-        # Find user in database
-        user = db.query(User).filter(User.email == user_data.email).first()
-        if not user:
-            print(f"❌ User not found: {user_data.email}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
-
-        # Verify password
-        if not verify_password(user_data.password, user.password_hash):
-            print(f"❌ Invalid password for {user_data.email}")
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid email or password"
-            )
-
-        # Generate access token
-        token_data = {"sub": user.email}
-        access_token = create_access_token(token_data)
-        print(f"✅ Login successful for {user_data.email}")
+        # Add to database
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
         
+        print(f"✅ Registration successful for {user_data.email}")
         return {
-            "access_token": access_token,
-            "token_type": "bearer",
+            "message": "Registration successful",
             "user": {
-                "email": user.email,
-                "first_name": user.first_name,
-                "last_name": user.last_name
+                "email": new_user.email,
+                "first_name": new_user.first_name,
+                "last_name": new_user.last_name
             }
         }
-    
+        
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Login error: {str(e)}")
+        print(f"❌ Registration error: {str(e)}")
+        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error"
+            detail="Internal server error during registration"
         )
 
-# Include the API router
-app.include_router(router)
-
-# Redirect root to frontend
 @app.get("/")
-async def root():
-    return FileResponse(f"{frontend_dir}/login.html")
+def root():
+    """API root"""
+    return {
+        "message": "Flight Booking API",
+        "version": "1.0.0",
+        "documentation": "/docs"
+    }
 
 @app.get("/airports")
 def get_airports():
