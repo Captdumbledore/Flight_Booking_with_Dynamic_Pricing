@@ -62,8 +62,29 @@ app.include_router(flights_router)
 # Import in-memory storage
 from app.state import flights_data, bookings_data
 
+# Initialize SQLAlchemy engine and session
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
 # Load environment variables
 load_dotenv()  # This will automatically look for .env file
+
+# Create SQLite database engine
+SQLALCHEMY_DATABASE_URL = "sqlite:///./flight_booking.db"
+engine = create_engine(SQLALCHEMY_DATABASE_URL)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
+# Create all database tables
+from app.user_database import Base
+Base.metadata.create_all(bind=engine)
+
+# Dependency to get database session
+def get_db_session():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
 
 # Amadeus API Configuration
 AMADEUS_CLIENT_ID = os.getenv("AMADEUS_CLIENT_ID")
@@ -952,7 +973,7 @@ async def login(user_data: UserLogin, db: Session = Depends(get_db)):
         )
 
 @app.post("/auth/register")
-async def register(user_data: UserRegister, db: Session = Depends(get_db)):
+async def register(user_data: UserRegister, db: Session = Depends(get_db_session)):
     """Register a new user"""
     print(f"\n📝 Registration attempt for {user_data.email}")
     
@@ -964,6 +985,13 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Email already registered"
+            )
+
+        # Validate password requirements
+        if len(user_data.password) < 8:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Password must be at least 8 characters long"
             )
 
         # Create password hash
@@ -978,29 +1006,36 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             phone=user_data.phone
         )
         
-        # Add to database
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-        
-        print(f"✅ Registration successful for {user_data.email}")
-        return {
-            "message": "Registration successful",
-            "user": {
-                "email": new_user.email,
-                "first_name": new_user.first_name,
-                "last_name": new_user.last_name
+        try:
+            # Add to database
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            
+            print(f"✅ Registration successful for {user_data.email}")
+            return {
+                "message": "Registration successful",
+                "user": {
+                    "email": new_user.email,
+                    "first_name": new_user.first_name,
+                    "last_name": new_user.last_name
+                }
             }
-        }
-        
+        except Exception as db_error:
+            db.rollback()
+            print(f"❌ Database error during registration: {str(db_error)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error during registration"
+            )
+            
     except HTTPException:
         raise
     except Exception as e:
         print(f"❌ Registration error: {str(e)}")
-        db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Internal server error during registration"
+            detail=str(e)
         )
 
 # HTML Routes

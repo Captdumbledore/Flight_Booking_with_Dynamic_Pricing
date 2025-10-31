@@ -224,8 +224,41 @@
                 el.style.display = 'none';
             });
 
+            // Validate full name
             if (!firstName || !lastName) {
                 showError('regFullName', 'Please enter both first and last name');
+                return;
+            }
+
+            // Validate email format
+            if (!email || !email.includes('@')) {
+                showError('regEmail', 'Please enter a valid email address');
+                return;
+            }
+
+            // Validate password requirements
+            if (password.length < 8) {
+                showError('regPassword', 'Password must be at least 8 characters long');
+                return;
+            }
+
+            if (!/[A-Z]/.test(password)) {
+                showError('regPassword', 'Password must contain at least one uppercase letter');
+                return;
+            }
+
+            if (!/[a-z]/.test(password)) {
+                showError('regPassword', 'Password must contain at least one lowercase letter');
+                return;
+            }
+
+            if (!/[0-9]/.test(password)) {
+                showError('regPassword', 'Password must contain at least one number');
+                return;
+            }
+
+            if (!/[!@#$%^&*]/.test(password)) {
+                showError('regPassword', 'Password must contain at least one special character (!@#$%^&*)');
                 return;
             }
 
@@ -235,7 +268,8 @@
             }
 
             try {
-                const response = await fetch(`${API_BASE_URL}/auth/register`, {
+                console.log('Attempting registration...');
+                const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -249,12 +283,13 @@
                     }),
                 });
 
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.detail || 'Registration failed');
-                }
-
+                console.log('Registration response:', response.status);
                 const data = await response.json();
+                console.log('Registration data:', data);
+
+                if (!response.ok) {
+                    throw new Error(data.detail || 'Registration failed');
+                }
                 
                 // Show success message and close modal
                 showSuccess('Registration successful! Please login.');
