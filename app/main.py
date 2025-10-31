@@ -3,13 +3,10 @@ Main FastAPI application - FIXED VERSION
 """
 
 import asyncio
-import os
-from fastapi import FastAPI, HTTPException, Query, Depends, status, Response
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi import FastAPI, HTTPException, Query, Depends, status
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
 import random
@@ -38,8 +35,6 @@ app = FastAPI(
     description="A comprehensive flight booking system with dynamic pricing",
     version="1.0.0"
 )
-
-# Configure CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -47,10 +42,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-# Mount static files for frontend
-frontend_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
-app.mount("/static", StaticFiles(directory=frontend_dir), name="frontend")
 
 # Create FastAPI routers
 from app.routes.flights_v2 import router as flights_router
@@ -65,8 +56,8 @@ from app.state import flights_data, bookings_data
 load_dotenv()  # This will automatically look for .env file
 
 # Amadeus API Configuration
-AMADEUS_CLIENT_ID = "X5MG313HNu3o3YXHiqemToAUrQxknRwm"
-AMADEUS_CLIENT_SECRET = "dGe3yTGET /bookings/email/jistoprakash@gmail.comGET /bookings/email/jistoprakash@gmail.comN6aHoGtmtD"
+AMADEUS_CLIENT_ID = os.getenv("AMADEUS_CLIENT_ID")
+AMADEUS_CLIENT_SECRET = os.getenv("AMADEUS_CLIENT_SECRET")
 AMADEUS_BASE_URL = "https://test.api.amadeus.com"
 AMADEUS_ACCESS_TOKEN = None
 AMADEUS_TOKEN_EXPIRES_AT = None
@@ -197,6 +188,12 @@ async def startup_event():
     ]
     
     try:
+        # Check Amadeus credentials first
+        if not AMADEUS_CLIENT_ID or not AMADEUS_CLIENT_SECRET:
+            print("\n⚠️ Amadeus credentials not configured - using fallback data")
+            await load_fallback_flight_data(initial_only=True)
+            return
+
         # Try to get some real flights with a timeout
         async def load_data():
             loaded = await load_initial_flights(INITIAL_ROUTES)
@@ -996,17 +993,11 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             detail="Internal server error during registration"
         )
 
-@app.get("/", response_class=HTMLResponse)
+@app.get("/")
 async def root():
-    """Serve the frontend index.html"""
-    try:
-        index_path = os.path.join(frontend_dir, "index.html")
-        with open(index_path, "r", encoding="utf-8") as f:
-            content = f.read()
-            return HTMLResponse(content=content)
-    except Exception as e:
-        print(f"Error serving index.html: {e}")
-        return HTMLResponse(content="<h1>Flight Booking API</h1><p>Error loading frontend.</p>")
+    """API root - redirects to login"""
+    from fastapi.responses import RedirectResponse
+    return RedirectResponse(url="/login.html", status_code=302)
 
 @app.get("/airports")
 def get_airports():
