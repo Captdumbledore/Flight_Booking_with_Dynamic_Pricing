@@ -37,7 +37,8 @@ import pathlib
 app = FastAPI(
     title="Flight Booking API",
     description="A comprehensive flight booking system with dynamic pricing",
-    version="1.0.0"
+    version="1.0.0",
+    root_path="/api"  # Add this line to prefix all routes with /api
 )
 
 # Mount the frontend directory for static files
@@ -1002,15 +1003,21 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
             detail="Internal server error during registration"
         )
 
-@app.get("/")
+# HTML Routes
+@app.get("/", include_in_schema=False)
 async def root():
-    """API root - serves the login page"""
-    return FileResponse(path=f"{frontend_dir}/login.html")
+    """Serve the login page"""
+    return FileResponse(f"{frontend_dir}/login.html")
 
-@app.get("/login.html")
+@app.get("/login.html", include_in_schema=False)
 async def login_page():
     """Serve the login page"""
-    return FileResponse(path=f"{frontend_dir}/login.html")
+    return FileResponse(f"{frontend_dir}/login.html")
+
+@app.get("/index.html", include_in_schema=False)
+async def index_page():
+    """Serve the main page"""
+    return FileResponse(f"{frontend_dir}/index.html")
 
 @app.get("/airports")
 def get_airports():
