@@ -3,7 +3,7 @@ Main FastAPI application - FIXED VERSION
 """
 
 import asyncio
-from fastapi import FastAPI, HTTPException, Query, Depends, status
+from fastapi import FastAPI, HTTPException, Query, Depends, status, APIRouter
 from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 from fastapi.middleware.cors import CORSMiddleware
@@ -37,18 +37,21 @@ import pathlib
 app = FastAPI(
     title="Flight Booking API",
     description="A comprehensive flight booking system with dynamic pricing",
-    version="1.0.0",
-    root_path="/api"  # Add this line to prefix all routes with /api
+    version="1.0.0"
 )
 
 # Mount the frontend directory for static files
 frontend_dir = str(pathlib.Path(__file__).parent.parent / "frontend")
-app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+app.mount("/", StaticFiles(directory=frontend_dir, html=True), name="frontend")
 
+# Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=[
+        "http://localhost:8001",
+        "https://flight-booking-with-dynamic-pricing.onrender.com"
+    ],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -1038,21 +1041,122 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db_session
             detail=str(e)
         )
 
-# HTML Routes
-@app.get("/", include_in_schema=False)
+# API Endpoints prefixed with /api
+router = APIRouter(prefix="/api")
+
+@router.post("/auth/register", response_model=dict)
+async def register(user_data: UserRegister, db: Session = Depends(get_db_session)):
+    """Register a new user"""
+    print(f"\n📝 Registration attempt for {user_data.email}")
+    
+    try:
+        # Check if user already exists
+        existing_user = db.query(User).filter(User.email == user_data.email).first()
+        if existing_user:
+            print(f"❌ Email already registered: {user_data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+
+        # Create password hash
+        password_hash = get_password_hash(user_data.password)
+        
+        # Create new user
+        new_user = User(
+            email=user_data.email,
+            password_hash=password_hash,
+            first_name=user_data.first_name,
+            last_name=user_data.last_name,
+            phone=user_data.phone
+        )
+        
+        try:
+            # Add to database
+            db.add(new_user)
+            db.commit()
+            db.refresh(new_user)
+            
+            print(f"✅ Registration successful for {user_data.email}")
+            return {
+                "message": "Registration successful",
+                "user": {
+                    "email": new_user.email,
+                    "first_name": new_user.first_name,
+                    "last_name": new_user.last_name
+                }
+            }
+        except Exception as db_error:
+            db.rollback()
+            print(f"❌ Database error during registration: {str(db_error)}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Database error during registration"
+            )
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Registration error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
+@router.post("/auth/login")
+async def login(user_data: UserLogin, db: Session = Depends(get_db_session)):
+    """Handle user login"""
+    print(f"\n🔐 Login attempt for {user_data.email}")
+    
+    try:
+        # Find user in database
+        user = db.query(User).filter(User.email == user_data.email).first()
+        if not user:
+            print(f"❌ User not found: {user_data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+
+        # Verify password
+        if not verify_password(user_data.password, user.password_hash):
+            print(f"❌ Invalid password for {user_data.email}")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid email or password"
+            )
+
+        # Generate access token
+        token_data = {"sub": user.email}
+        access_token = create_access_token(token_data)
+        print(f"✅ Login successful for {user_data.email}")
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "email": user.email,
+                "first_name": user.first_name,
+                "last_name": user.last_name
+            }
+        }
+    
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"❌ Login error: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Internal server error"
+        )
+
+# Include the API router
+app.include_router(router)
+
+# Redirect root to frontend
+@app.get("/")
 async def root():
-    """Serve the login page"""
     return FileResponse(f"{frontend_dir}/login.html")
-
-@app.get("/login.html", include_in_schema=False)
-async def login_page():
-    """Serve the login page"""
-    return FileResponse(f"{frontend_dir}/login.html")
-
-@app.get("/index.html", include_in_schema=False)
-async def index_page():
-    """Serve the main page"""
-    return FileResponse(f"{frontend_dir}/index.html")
 
 @app.get("/airports")
 def get_airports():
