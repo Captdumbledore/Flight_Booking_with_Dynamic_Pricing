@@ -30,11 +30,20 @@ import json
 from dotenv import load_dotenv
 
 # Create FastAPI app
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import pathlib
+
 app = FastAPI(
     title="Flight Booking API",
     description="A comprehensive flight booking system with dynamic pricing",
     version="1.0.0"
 )
+
+# Mount the frontend directory for static files
+frontend_dir = str(pathlib.Path(__file__).parent.parent / "frontend")
+app.mount("/static", StaticFiles(directory=frontend_dir), name="static")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -995,9 +1004,13 @@ async def register(user_data: UserRegister, db: Session = Depends(get_db)):
 
 @app.get("/")
 async def root():
-    """API root - redirects to login"""
-    from fastapi.responses import RedirectResponse
-    return RedirectResponse(url="/login.html", status_code=302)
+    """API root - serves the login page"""
+    return FileResponse(path=f"{frontend_dir}/login.html")
+
+@app.get("/login.html")
+async def login_page():
+    """Serve the login page"""
+    return FileResponse(path=f"{frontend_dir}/login.html")
 
 @app.get("/airports")
 def get_airports():
