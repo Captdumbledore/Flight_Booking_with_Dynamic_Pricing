@@ -1,6 +1,3 @@
-"""
-Main FastAPI application - FIXED VERSION
-"""
 
 import asyncio
 from fastapi import FastAPI, HTTPException, Query, Depends, status
