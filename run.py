@@ -1,6 +1,8 @@
 
 from app.main import app
 
+# This is the ASGI entry point that Render will use
+
 if __name__ == "__main__":
     import uvicorn
     print("""
@@ -16,7 +18,7 @@ if __name__ == "__main__":
     """)
     
     uvicorn.run(
-        app,
+        "run:app",
         host="0.0.0.0",
         port=8001,
         reload=True
