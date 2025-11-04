@@ -1,6 +1,9 @@
+<<<<<<< HEAD
 """
 Main FastAPI application - FIXED VERSION with .env support
 """
+=======
+>>>>>>> 500d9910c4e5a6c635c69572def25c2eaaa2dc24
 
 import asyncio
 from fastapi import FastAPI, HTTPException, Query, Depends, status
