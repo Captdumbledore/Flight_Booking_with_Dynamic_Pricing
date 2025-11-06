@@ -3,6 +3,7 @@ Amadeus API Client for fetching real flight data
 """
 
 import os
+import asyncio
 from datetime import datetime, timedelta
 import httpx
 import random
@@ -57,7 +58,7 @@ class AmadeusClient:
 
     async def search_flights(self, origin: str, destination: str, date: str, max_results: int = 10) -> List[Dict]:
         """
-        Search for flights using Amadeus API
+        Search for flights using Amadeus API with enhanced error handling and caching
         
         Args:
             origin: Origin airport code (e.g., 'JFK')
@@ -68,6 +69,14 @@ class AmadeusClient:
         Returns:
             List of flight dictionaries with standardized format
         """
+        # Check cache first
+        cache_key = f"{origin}-{destination}-{date}"
+        if hasattr(self, '_cache') and cache_key in self._cache:
+            cache_time = self._cache_times.get(cache_key)
+            if cache_time and (datetime.utcnow() - cache_time).total_seconds() < 300:  # 5 minute cache
+                print(f"📋 Using cached results for {origin}->{destination}")
+                return self._cache[cache_key]
+        
         token = await self.get_token()
         if not token:
             print("⚠️ No Amadeus token available")
@@ -85,13 +94,18 @@ class AmadeusClient:
             "departureDate": date,
             "adults": 1,
             "max": max_results,
-            "currencyCode": "USD"
+            "currencyCode": "USD",
+            "nonStop": "false"  # Allow connections to increase chances of finding flights
         }
 
         max_retries = 3
+        backoff_factor = 1.5
+        
         for attempt in range(1, max_retries + 1):
+            timeout = min(30 * backoff_factor ** (attempt - 1), 90)  # Increase timeout with each retry, max 90s
             try:
-                async with httpx.AsyncClient(timeout=30) as client:
+                print(f"\n🔄 Attempt {attempt}/{max_retries} - Timeout: {timeout}s")
+                async with httpx.AsyncClient(timeout=timeout) as client:
                     resp = await client.get(url, headers=headers, params=params)
 
                 if resp.status_code == 200:
@@ -150,11 +164,22 @@ class AmadeusClient:
                             }
                             flights.append(flight)
                     
-                    return flights[:max_results]
+                    flights = flights[:max_results]
+                    
+                    # Cache successful results
+                    if not hasattr(self, '_cache'):
+                        self._cache = {}
+                        self._cache_times = {}
+                    self._cache[cache_key] = flights
+                    self._cache_times[cache_key] = datetime.utcnow()
+                    
+                    print(f"✅ Successfully found {len(flights)} flights for {origin}->{destination}")
+                    return flights
                 
                 elif resp.status_code == 400:
                     print(f"⚠️ Amadeus API 400 error for {origin}->{destination}: {resp.text}")
-                    return []
+                    if attempt >= max_retries:
+                        return []
                 
                 elif resp.status_code == 401:
                     print("⚠️ Amadeus token expired, refreshing...")
@@ -165,17 +190,39 @@ class AmadeusClient:
                     headers["Authorization"] = f"Bearer {token}"
                     continue
                 
+                elif resp.status_code == 429:  # Rate limit
+                    retry_after = int(resp.headers.get('retry-after', 5))
+                    print(f"⚠️ Rate limited. Waiting {retry_after} seconds...")
+                    await asyncio.sleep(retry_after)
+                    continue
+                
                 else:
                     print(f"⚠️ Amadeus API error {resp.status_code}")
+                    error_data = resp.json() if resp.text else {}
+                    print(f"Error details: {error_data}")
                     if attempt < max_retries:
-                        await httpx.AsyncClient().aclose()
+                        wait_time = backoff_factor ** attempt
+                        print(f"Retrying in {wait_time:.1f} seconds...")
+                        await asyncio.sleep(wait_time)
                         continue
                     return []
 
+            except httpx.TimeoutException:
+                print(f"⚠️ Request timeout ({timeout}s) for {origin}->{destination}")
+                if attempt < max_retries:
+                    wait_time = backoff_factor ** attempt
+                    print(f"Retrying in {wait_time:.1f} seconds...")
+                    await asyncio.sleep(wait_time)
+                    continue
+                return []
+                
             except Exception as e:
                 print(f"⚠️ Error searching flights {origin}->{destination}: {e}")
+                print(f"Error type: {type(e).__name__}")
                 if attempt < max_retries:
-                    await httpx.AsyncClient().aclose()
+                    wait_time = backoff_factor ** attempt
+                    print(f"Retrying in {wait_time:.1f} seconds...")
+                    await asyncio.sleep(wait_time)
                     continue
                 return []
 

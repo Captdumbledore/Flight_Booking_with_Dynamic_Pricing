@@ -1,9 +1,6 @@
-<<<<<<< HEAD
 """
 Main FastAPI application - FIXED VERSION with .env support
 """
-=======
->>>>>>> 500d9910c4e5a6c635c69572def25c2eaaa2dc24
 
 import asyncio
 from fastapi import FastAPI, HTTPException, Query, Depends, status
@@ -197,29 +194,73 @@ async def startup_event():
         ("SFO", "LAX"),  # San Francisco to Los Angeles
     ]
     
+    async def load_route_with_timeout(origin, destination, date):
+        """Load a single route with timeout handling"""
+        try:
+            return await asyncio.wait_for(
+                search_amadeus_flights(origin, destination, date),
+                timeout=20
+            )
+        except asyncio.TimeoutError:
+            print(f"⚠️ Timeout loading {origin}->{destination}")
+            return []
+        except Exception as e:
+            print(f"⚠️ Error loading {origin}->{destination}: {e}")
+            return []
+    
     try:
-        # Try to get some real flights with a timeout
-        async def load_data():
-            loaded = await load_initial_flights(INITIAL_ROUTES)
-            
-            if loaded < 3:
-                print("\n⚠️ Insufficient flights from API, adding fallback data")
-                await load_fallback_flight_data(initial_only=True)
-                
-            if not flights_data:
-                print("❌ Failed to load any flights. Server may have limited functionality.")
-            else:
-                print(f"✅ Successfully loaded {len(flights_data)} flights")
-                
-        await asyncio.wait_for(load_data(), timeout=10)
+        token = await get_amadeus_token()
+        if not token:
+            print("⚠️ No Amadeus token available")
+            raise Exception("Authentication failed")
         
+        tomorrow = (datetime.now() + timedelta(days=1)).strftime("%Y-%m-%d")
+        flight_id = 1
+        loaded = 0
+        
+        # Process routes one at a time with individual timeouts
+        for origin, destination in INITIAL_ROUTES:
+            flights = await load_route_with_timeout(origin, destination, tomorrow)
+            
+            for flight in flights[:2]:  # Just 2 flights per route
+                flights_data.append({
+                    "flight_id": f"FL{flight_id:04d}",
+                    "airline": flight.get("airline"),
+                    "airline_code": flight.get("airline_code", ""),
+                    "origin": origin,
+                    "destination": destination,
+                    "origin_city": get_airport_info(origin)["city"],
+                    "destination_city": get_airport_info(destination)["city"],
+                    "departure_time": flight.get("departure_time", ""),
+                    "arrival_time": flight.get("arrival_time", ""),
+                    "duration": flight.get("duration", "2h 30m"),
+                    "current_price": flight.get("price", 299.99),
+                    "base_fare": flight.get("base_fare", 199.99),
+                    "available_seats": random.randint(20, 200),
+                    "total_seats": random.choice([150, 180, 200]),
+                    "tier": random.choice(["economy", "premium", "business"]),
+                    "demand_level": random.choice(["low", "medium", "high"])
+                })
+                flight_id += 1
+                loaded += 1
+            
+            # Small delay between routes
+            await asyncio.sleep(1)
+        
+        if loaded < 3:
+            print("\n⚠️ Insufficient flights from API, adding fallback data")
+            await load_fallback_flight_data(initial_only=True)
+            
+        if not flights_data:
+            print("❌ Failed to load any flights. Server may have limited functionality.")
+        else:
+            print(f"✅ Successfully loaded {len(flights_data)} flights")
+            
     except Exception as e:
         print(f"\n❌ Error during startup: {e}")
         print(f"Type: {type(e).__name__}")
         if isinstance(e, httpx.HTTPError):
             print("Network or API error - check your internet connection and API credentials")
-        elif isinstance(e, asyncio.TimeoutError):
-            print("Operation timed out - API may be slow or unresponsive")
         elif isinstance(e, KeyError):
             print("Data format error - check API response structure")
         else:
@@ -262,16 +303,26 @@ async def get_amadeus_token():
             return None
 
         url = f"{AMADEUS_BASE_URL}/v1/security/oauth2/token"
-        headers = {"Content-Type": "application/x-www-form-urlencoded"}
+        headers = {
+            "Content-Type": "application/x-www-form-urlencoded"
+        }
         data = {
             "grant_type": "client_credentials",
             "client_id": AMADEUS_CLIENT_ID,
             "client_secret": AMADEUS_CLIENT_SECRET,
         }
 
+        print("\n🔄 Requesting Amadeus token...")
+        print(f"Base URL: {AMADEUS_BASE_URL}")
+        print(f"Client ID: {AMADEUS_CLIENT_ID[:8]}...")
+        print(f"Client Secret: {AMADEUS_CLIENT_SECRET[:4]}...")
+
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(url, headers=headers, data=data)
 
+        print(f"\nResponse Status: {resp.status_code}")
+        print(f"Response Headers: {dict(resp.headers)}")
+        
         if resp.status_code == 200:
             token_data = resp.json()
             token = token_data.get("access_token")
@@ -279,12 +330,26 @@ async def get_amadeus_token():
             if token:
                 AMADEUS_ACCESS_TOKEN = token
                 AMADEUS_TOKEN_EXPIRES_AT = datetime.utcnow() + timedelta(seconds=max(30, expires_in - 30))
+                print(f"✅ Token received (expires in {expires_in} seconds)")
                 return AMADEUS_ACCESS_TOKEN
+            else:
+                print("❌ Token missing in response")
+                return None
+        elif resp.status_code == 401:
+            error_data = resp.json() if resp.text else {}
+            print(f"\n❌ Authentication failed: {error_data}")
+            print("\n💡 Possible issues:")
+            print("1. Invalid Client ID or Client Secret")
+            print("2. Credentials expired or revoked")
+            print("3. Wrong API environment (TEST vs PROD)")
+            return None
         else:
-            print(f"❌ Failed to get Amadeus token: {resp.status_code}")
+            print(f"\n❌ Failed to get token: {resp.status_code}")
+            print(f"Response: {resp.text[:500]}")
             return None
     except Exception as e:
-        print(f"❌ Error getting Amadeus token: {e}")
+        print(f"\n❌ Error getting Amadeus token: {e}")
+        print(f"Type: {type(e).__name__}")
         return None
 
 async def search_amadeus_flights(origin, destination, date):
@@ -304,19 +369,29 @@ async def search_amadeus_flights(origin, destination, date):
         "destinationLocationCode": destination,
         "departureDate": date,
         "adults": 1,
-        "max": 10,
+        "max": 5,  # Reduced to get faster response
         "currencyCode": "USD",
         "nonStop": "true"
     }
 
     max_retries = 3
-    backoff_factor = 1.5
+    backoff_factor = 2
+    base_timeout = 15
     
     for attempt in range(1, max_retries + 1):
         try:
-            timeout = 30 * attempt
+            timeout = base_timeout * backoff_factor ** (attempt - 1)
+            print(f"\n🔄 Attempt {attempt}/{max_retries} for {origin}->{destination} (timeout: {timeout}s)")
+            
             async with httpx.AsyncClient(timeout=timeout) as client:
                 resp = await client.get(url, headers=headers, params=params)
+
+            # Handle rate limiting
+            if resp.status_code == 429:
+                retry_after = int(resp.headers.get("Retry-After", backoff_factor ** attempt))
+                print(f"⚠️ Rate limited. Waiting {retry_after} seconds...")
+                await asyncio.sleep(retry_after)
+                continue
 
             if resp.status_code == 200:
                 data = resp.json()
@@ -1218,7 +1293,6 @@ def get_statistics():
     confirmed_bookings = len([b for b in bookings_data if b["booking_status"] == "confirmed"])
     total_revenue = sum(b["total_amount"] for b in bookings_data if b["booking_status"] == "confirmed")
     return {
-        "total_flights": len(flights_data),
         "total_seats": total_seats,
         "available_seats": available_seats,
         "occupancy_rate": f"{((total_seats - available_seats) / total_seats * 100):.2f}%" if total_seats > 0 else "0%",
