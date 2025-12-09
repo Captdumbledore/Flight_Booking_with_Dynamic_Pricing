@@ -1,199 +1,169 @@
-**# ✈️Flight Booking API - Dynamic Pricing System**
+# ✈️ Flight Booking API - Dynamic Pricing System
 
+A comprehensive REST API for flight booking with intelligent dynamic pricing, built using **FastAPI**.
 
+---
 
-**A comprehensive REST API for flight booking with intelligent dynamic pricing, built with FastAPI.**
+## 🌐 Live Hosted Version
 
+A live version of this project is available here:  
+👉 **[https://dynamic-flight-booking-render-hosted.onrender.com](https://dynamic-flight-booking-render-hosted.onrender.com)**
 
+> **Note:**  
+> - The hosted version is deployed using a **copy** of this repository, available here:  
+>   🔗 [https://github.com/Captdumbledore/Dynamic_flight_booking_render_hosted_version](https://github.com/Captdumbledore/Dynamic_flight_booking_render_hosted_version)  
+> - SMTP (email) services are **disabled** due to limitations in Render’s free hosting tier.  
+> - This repository represents the **original version** submitted for evaluation.
 
-**## 🎯 Features**
+---
 
+## 🎯 Features
 
+- ✅ REST APIs for flight management  
+- ✅ Advanced search by origin, destination, and date  
+- ✅ Dynamic pricing based on multiple factors  
+- ✅ Real-time seat availability  
+- ✅ Comprehensive API documentation (Swagger UI)  
+- ✅ Background demand simulation  
 
-**- ✅ REST APIs for flight management**
+---
 
-**- ✅ Advanced search by origin, destination, and date**
+## 🚀 Installation
 
-**- ✅ Dynamic pricing based on multiple factors**
+### Prerequisites
+- Python 3.9+  
+- pip  
 
-**- ✅ Real-time seat availability**
+---
 
-**- ✅ Comprehensive API documentation (Swagger UI)**
+### Setup
 
-**- ✅ Background demand simulation**
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/Captdumbledore/flight-booking-api.git
+   cd flight-booking-api
+   ```
 
+2. **Create a virtual environment**
+   ```bash
+   python -m venv venv
+   ```
 
+3. **Activate the virtual environment**
+   ```bash
+   # Windows
+   venv\Scripts\activate
 
-**## 🚀 Installation**
+   # macOS/Linux
+   source venv/bin/activate
+   ```
 
+4. **Install dependencies**
+   ```bash
+   pip install fastapi uvicorn pydantic python-dotenv
+   ```
 
+5. **Run the application**
+   ```bash
+   python run.py
+   ```
 
-**### Prerequisites**
+6. **Access the API**
+   - API Documentation: http://localhost:8001/docs  
+   - API Home: http://localhost:8001  
+   - Statistics: http://localhost:8001/stats  
 
-**- Python 3.9+**
+---
 
-**- pip**
+## 📚 API Endpoints
 
+| Method | Endpoint | Description |
+|:-------|:----------|:-------------|
+| **GET** | `/flights` | Get all available flights |
+| **POST** | `/flights/search` | Search flights by origin, destination, and date |
+| **GET** | `/flights/{flight_id}` | Get details of a specific flight |
+| **GET** | `/stats` | Retrieve system statistics |
 
+---
 
-**### Setup**
+## 💡 Dynamic Pricing
 
+The pricing engine dynamically adjusts fares based on several real-world factors:
 
+- 🪑 **Seat Availability (Scarcity Pricing)** — Prices rise as seats fill up.  
+- ⏱️ **Time Until Departure (Urgency Pricing)** — Prices increase closer to departure.  
+- 📈 **Demand Levels (Market Pricing)** — High-demand routes are priced higher.  
+- 💰 **Base Fare and Tier System** — Each route starts with a fixed base fare and adjusts per tier.
 
-**1. \*\*Clone the repository\*\***
+This model closely simulates real-world airline pricing logic.
 
-**```bash**
+---
 
-**git clone https://github.com/Captdumbledore/flight-booking-api.git**
+## 🔧 Technology Stack
 
-**cd flight-booking-api**
+- **Framework:** FastAPI  
+- **Server:** Uvicorn  
+- **Validation:** Pydantic  
+- **Language:** Python 3.9+  
+- **Environment Management:** python-dotenv  
+- **Hosting Platform:** Render  
 
-**```**
+---
 
+## 🧪 Example Usage
 
+### Get All Flights
+```bash
+curl http://localhost:8001/flights?limit=5
+```
 
-**2. \*\*Create virtual environment\*\***
+### Search Flights
+```bash
+curl -X POST http://localhost:8001/flights/search \
+-H "Content-Type: application/json" \
+-d '{"origin":"JFK","destination":"LAX","date":"2025-10-20"}'
+```
 
-**```bash**
+---
 
-**python -m venv venv**
+## 🧰 Project Structure
 
-**```**
+```
+flight-booking-api/
+├── .env
+├── run.py
+├── app/
+│   ├── main.py
+│   ├── routes/
+│   ├── models/
+│   ├── utils/
+│   └── ...
+├── requirements.txt
+├── README.md
+└── ...
+```
 
+---
 
+## 🧾 License
 
-**3. \*\*Activate virtual environment\*\***
+This project is created **for educational purposes** and may be reused with proper attribution.
 
-**```bash**
+---
 
-**# Windows**
+## 👨‍💻 Author
 
-**venv\\Scripts\\activate**
+**Captdumbledore (Jisto Prakash)**  
+🔗 [GitHub Profile](https://github.com/Captdumbledore)
 
+---
 
+## 🗒️ Acknowledgements
 
-**# macOS/Linux**
+- [FastAPI Documentation](https://fastapi.tiangolo.com/)  
+- [Render Deployment Guide](https://render.com/docs)  
+- [Pydantic Documentation](https://docs.pydantic.dev/)  
 
-**source venv/bin/activate**
+---
 
-**```**
-
-
-
-**4. \*\*Install dependencies\*\***
-
-**```bash**
-
-**pip install fastapi uvicorn pydantic python-dotenv**
-
-**```**
-
-
-
-**5. \*\*Run the application\*\***
-
-**```bash**
-
-**python run.py**
-
-**```**
-
-
-
-**6. \*\*Access the API\*\***
-
-**- API Documentation: http://localhost:8001/docs**
-
-**- API Home: http://localhost:8001**
-
-**- Statistics: http://localhost:8001/stats**
-
-
-
-**## 📚 API Endpoints**
-
-
-
-**- `GET /flights` - Get all flights**
-
-**- `POST /flights/search` - Search flights by origin, destination, date**
-
-**- `GET /flights/{flight\\\_id}` - Get specific flight details**
-
-**- `GET /stats` - Get system statistics**
-
-
-
-**## 🔧 Technology Stack**
-
-
-
-**- \*\*Framework\*\*: FastAPI**
-
-**- \*\*Server\*\*: Uvicorn**
-
-**- \*\*Validation\*\*: Pydantic**
-
-**- \*\*Language\*\*: Python 3.9+**
-
-
-
-**## 📝 Example Usage**
-
-
-
-**### Get All Flights**
-
-**```bash**
-
-**curl http://localhost:8001/flights?limit=5**
-
-**```**
-
-
-
-**### Search Flights**
-
-**```bash**
-
-**curl -X POST http://localhost:8001/flights/search \\**
-
-**-H "Content-Type: application/json" \\**
-
-**-d '{"origin":"JFK","destination":"LAX","date":"2025-10-20"}'**
-
-**```**
-
-
-
-**## 💡 Dynamic Pricing**
-
-
-
-**The pricing engine considers:**
-
-**- Seat availability (scarcity pricing)**
-
-**- Time until departure (urgency pricing)**
-
-**- Demand levels (market pricing)**
-
-**- Base fare and pricing tiers**
-
-
-
-**## 📄 License**
-
-
-
-**This project is for educational purposes.**
-
-
-
-**## 👨‍💻 Author**
-
-
-
-**Your Name - Captdumbledore**
-
-
+> 💬 *“The sky is not the limit when your code can fly.”* ✈️
